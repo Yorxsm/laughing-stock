@@ -1,0 +1,40 @@
+{
+    "users": [
+        {
+            "email": "onwuchekwachiwenizu55@gmail.com",
+            "name": "David Onwuchekwa",
+            "role": "CTO"
+        },
+        {
+            "email": "kngdr3y@gmail.com",
+            "name": "Tobechukwu Nmanze",
+            "role": "Project Manager"
+        },
+        {
+            "email": "oxfestus@proton.me",
+            "name": "Efemena Festus",
+            "role": "COO"
+        },
+        {
+            "email": "iribhogbegodstime@gmail.com",
+            "name": "Irhibogbe Godstime",
+            "role": "Design Team Member"
+        },
+        {
+            "email": "peaceoomomoh@gmail.com",
+            "name": "Peace Momoh",
+            "role": "Event Manager"
+        },
+        {
+            "email": "successolamotse@gmail.com",
+            "name": "Success Imhoeneghame",
+            "role": "CFO"
+        },
+        {
+            "email": "omagbitsegodstime16@gmail.com",
+            "name": "Godstime Omagbitse",
+            "role": "Head of Design"
+        }
+    ],
+    "lastUpdated": "2026-01-12"
+}

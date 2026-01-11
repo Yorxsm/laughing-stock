@@ -12,15 +12,73 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Print styles - only show the memo */
+@media print {
+
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the memo container and its contents */
+  #printable-memo,
+  #printable-memo * {
+    visibility: visible;
+  }
+
+  /* Position the memo at the top of the page */
+  #printable-memo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    max-width: none !important;
+    min-height: 100vh !important;
+    background-size: 100% 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Remove margins from body */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Remove margins from html */
+  html {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Ensure background images print */
+  .memo-container {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide elements with print:hidden class */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Set page size */
+  @page {
+    size: letter;
+    margin: 0;
+  }
 }
