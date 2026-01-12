@@ -241,7 +241,7 @@ const ExhibotOrgStructure = () => {
         {
             title: 'Head of Partnerships',
             name: 'James Salami',
-            email: 'partnerships@exhibot.ng',
+            email: 'murewasalami@gmail.com',
             scope: 'Partnership Execution',
             responsibilities: [
                 'Sponsor asset collection',
