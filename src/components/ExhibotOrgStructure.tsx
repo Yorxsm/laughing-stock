@@ -140,7 +140,7 @@ const ExhibotOrgStructure = () => {
         },
         {
             title: 'Project Manager',
-            name: 'Tobechukwu Nmanze',
+            name: 'Tobechukwu Nwanze',
             email: 'kngdr3y@gmail.com',
             scope: 'Execution Tracking',
             responsibilities: [
