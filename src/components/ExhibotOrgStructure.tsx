@@ -42,6 +42,14 @@ interface RecurringMeeting {
     type: 'daily' | 'weekly' | 'adhoc';
 }
 
+interface ReportFormData {
+    completedTasks: string;
+    tomorrowFocus: string;
+    blockers: string;
+    risks: string;
+    additionalNotes: string;
+}
+
 const ExhibotOrgStructure = () => {
     const [activeTab, setActiveTab] = useState<string>('orgchart');
     const [selectedRole, setSelectedRole] = useState<number | null>(null);
@@ -49,6 +57,15 @@ const ExhibotOrgStructure = () => {
     const [selectedTrackerRole, setSelectedTrackerRole] = useState<number | null>(null);
     const [copiedReport, setCopiedReport] = useState<number | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [selectedReportRole, setSelectedReportRole] = useState<number | null>(null);
+    const [reportForm, setReportForm] = useState<ReportFormData>({
+        completedTasks: '',
+        tomorrowFocus: '',
+        blockers: '',
+        risks: '',
+        additionalNotes: ''
+    });
+    const [copiedBuiltReport, setCopiedBuiltReport] = useState(false);
 
     // Update current time every minute
     useEffect(() => {
@@ -473,12 +490,91 @@ ${role.kpis.map((kpi, i) => {
 #ExhibotLabs #DailyReport #${role.title.replace(/\s+/g, '')}`;
     };
 
-    // Copy report to clipboard
-    const copyDailyReport = async (roleIndex: number) => {
-        const report = generateDailyReport(roleIndex);
+    // Generate custom report from form data
+    const generateBuiltReport = (roleIndex: number): string => {
+        const role = roles[roleIndex];
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        const roleDeliverables = deliverableUpdates.filter(d => d.roleIndex === roleIndex);
+        const completed = roleDeliverables.filter(d => d.status === 'completed').length;
+        const inProgress = roleDeliverables.filter(d => d.status === 'in-progress').length;
+        const blocked = roleDeliverables.filter(d => d.status === 'blocked').length;
+
+        // Format bullet points from text areas
+        const formatBullets = (text: string) => {
+            if (!text.trim()) return '• None';
+            return text.split('\n').filter(line => line.trim()).map(line => `• ${line.trim().replace(/^[•-]\s*/, '')}`).join('\n');
+        };
+
+        return `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 EXHIBOT LABS - DAILY PROGRESS REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📅 Date: ${dateStr}
+⏰ Submitted: ${timeStr}
+👤 Name: ${role.name}
+💼 Role: ${role.title}
+🎯 Scope: ${role.scope}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 DELIVERABLES SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Completed: ${completed}/${role.kpis.length}
+🔄 In Progress: ${inProgress}/${role.kpis.length}
+🚫 Blocked: ${blocked}/${role.kpis.length}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ COMPLETED TODAY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formatBullets(reportForm.completedTasks)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 IN PROGRESS / TOMORROW'S FOCUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formatBullets(reportForm.tomorrowFocus)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚫 BLOCKERS / HELP NEEDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formatBullets(reportForm.blockers)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 KEY DELIVERABLES STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${role.kpis.map((kpi, i) => {
+            const status = getDeliverableStatus(roleIndex, i);
+            const statusIcon = status?.status === 'completed' ? '✅' : status?.status === 'in-progress' ? '🔄' : status?.status === 'blocked' ? '🚫' : '⬜';
+            return `${statusIcon} ${kpi}${status?.notes ? `\n   └─ Notes: ${status.notes}` : ''}`;
+        }).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ RISK/ESCALATION (if any)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formatBullets(reportForm.risks)}
+
+${reportForm.additionalNotes ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ℹ️ ADDITIONAL NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formatBullets(reportForm.additionalNotes)}
+` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📧 Report submitted by: ${role.name}
+🔗 Event Role: ${role.eventRole}
+⏰ Due Time: ${role.dailyDelivery}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+#ExhibotLabs #DailyReport #${role.title.replace(/\s+/g, '')}`;
+    };
+
+    // Copy built report to clipboard
+    const copyBuiltReport = async () => {
+        if (selectedReportRole === null) return;
+        const report = generateBuiltReport(selectedReportRole);
         await navigator.clipboard.writeText(report);
-        setCopiedReport(roleIndex);
-        setTimeout(() => setCopiedReport(null), 2000);
+        setCopiedBuiltReport(true);
+        setTimeout(() => setCopiedBuiltReport(false), 2000);
     };
 
     // Generate deliverables document
@@ -841,8 +937,8 @@ ${role.kpis.map((kpi, i) => {
                     </button>
                     <button
                         onClick={() => setActiveTab('memos')}
-                        className={`py-2 md:py-3 px-2 md:px-4 rounded-md font-medium transition-colors text-xs md:text-sm flex items-center justify-center gap-1 whitespace-nowrap col-span-2 md:col-span-1 ${activeTab === 'memos' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                            }`}
+                        disabled
+                        className={`py-2 md:py-3 px-2 md:px-4 rounded-md font-medium transition-colors text-xs md:text-sm flex items-center justify-center gap-1 whitespace-nowrap col-span-2 md:col-span-1 bg-slate-200 text-slate-400 cursor-not-allowed opacity-60`}
                     >
                         <FileText className="w-3 h-3 md:w-4 md:h-4" />
                         <span className="hidden sm:inline">Role Memos</span>
@@ -915,18 +1011,18 @@ ${role.kpis.map((kpi, i) => {
 
                 {activeTab === 'daily' && (
                     <div className="bg-white rounded-lg shadow-lg p-4 md:p-8">
-                        <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-4 md:mb-6">Daily Delivery Schedule</h2>
+                        <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-4 md:mb-6">Daily Delivery Schedule & Report Builder</h2>
 
-                        <div className="mb-4 md:mb-6 bg-blue-50 border-l-4 border-blue-500 p-3 md:p-4">
+                        <div className="mb-6 md:mb-8 bg-blue-50 border-l-4 border-blue-500 p-3 md:p-4">
                             <p className="text-xs md:text-sm text-blue-900 font-semibold">
                                 Every team member must submit a daily report by their assigned time.
                             </p>
                             <p className="text-xs md:text-sm text-blue-800 mt-1 md:mt-2">
-                                Click &quot;Copy Report Template&quot; below to get a pre-filled template!
+                                Use the <strong>Interactive Report Builder</strong> below to generate your formatted report instantly.
                             </p>
                         </div>
 
-                        <div className="space-y-2 md:space-y-3 mb-6 md:mb-8">
+                        <div className="space-y-2 md:space-y-3 mb-8 md:mb-10">
                             {dailySchedule.map((item, idx) => (
                                 <div key={idx} className="flex flex-col sm:flex-row sm:items-center p-3 md:p-4 bg-slate-50 rounded-lg border border-slate-200 gap-1 md:gap-2">
                                     <div className="w-20 md:w-24 font-bold text-blue-600 shrink-0 text-sm md:text-base">{item.time}</div>
@@ -936,82 +1032,169 @@ ${role.kpis.map((kpi, i) => {
                             ))}
                         </div>
 
-                        {/* One-Click Copy Reports Section */}
-                        <div className="mb-6 md:mb-8">
-                            <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
-                                <Copy className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
-                                One-Click Daily Report Templates
+                        {/* Interactive Report Builder Section */}
+                        <div className="mb-6 md:mb-8 border-t border-slate-200 pt-8">
+                            <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <ClipboardCheck className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
+                                Interactive Report Builder
                             </h3>
-                            <p className="text-xs md:text-sm text-slate-600 mb-3 md:mb-4">
-                                Select your role and click to copy a detailed, pre-filled daily report template.
-                            </p>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {roles.map((role, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:border-green-400 transition-colors"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h4 className="font-bold text-slate-900">{role.title}</h4>
-                                                <p className="text-xs text-slate-500">{role.name}</p>
-                                            </div>
-                                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-medium">
-                                                {role.dailyDelivery.split(' ')[0]}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => copyDailyReport(idx)}
-                                            className={`w-full mt-2 py-2 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${copiedReport === idx
-                                                ? 'bg-green-600 text-white'
-                                                : 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                }`}
-                                        >
-                                            {copiedReport === idx ? (
-                                                <>
-                                                    <ClipboardCheck className="w-4 h-4" />
-                                                    Copied!
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy className="w-4 h-4" />
-                                                    Copy Report Template
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                ))}
+                            <div className="mb-6">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                    1. Select Your Role:
+                                </label>
+                                <select
+                                    value={selectedReportRole ?? ''}
+                                    onChange={(e) => setSelectedReportRole(e.target.value ? parseInt(e.target.value) : null)}
+                                    className="w-full p-3 border border-slate-300 rounded-lg text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="">-- Choose your role --</option>
+                                    {roles.map((role, idx) => (
+                                        <option key={idx} value={idx}>
+                                            {role.title} - {role.name} ({role.dailyDelivery})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+
+                            {selectedReportRole !== null && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                                    {/* Responsibilities Reminder */}
+                                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                        <h4 className="font-bold text-yellow-900 mb-2 flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-yellow-200 flex items-center justify-center text-yellow-800 text-xs font-bold">!</div>
+                                            Your Core Responsibilities
+                                        </h4>
+                                        <ul className="text-sm text-yellow-900 space-y-1 ml-9">
+                                            {roles[selectedReportRole].responsibilities.map((resp, i) => (
+                                                <li key={i} className="list-disc list-inside">{resp}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">2</div>
+                                            <h4 className="font-bold text-slate-800">Fill in your updates</h4>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mb-4 ml-10">Type your updates below. We'll format everything automatically with bullet points.</p>
+
+                                        <div className="space-y-4 ml-2 md:ml-10">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                    ✅ Completed Today
+                                                </label>
+                                                <textarea
+                                                    value={reportForm.completedTasks}
+                                                    onChange={(e) => setReportForm({ ...reportForm, completedTasks: e.target.value })}
+                                                    placeholder="What did you finish today? (One item per line)"
+                                                    rows={3}
+                                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                    🔄 In Progress / Tomorrow's Focus
+                                                </label>
+                                                <textarea
+                                                    value={reportForm.tomorrowFocus}
+                                                    onChange={(e) => setReportForm({ ...reportForm, tomorrowFocus: e.target.value })}
+                                                    placeholder="What are you working on next?"
+                                                    rows={3}
+                                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-sm"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                        🚫 Blockers (if any)
+                                                    </label>
+                                                    <textarea
+                                                        value={reportForm.blockers}
+                                                        onChange={(e) => setReportForm({ ...reportForm, blockers: e.target.value })}
+                                                        placeholder="Any issues blocking you?"
+                                                        rows={2}
+                                                        className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                        ⚠️ Risks (if any)
+                                                    </label>
+                                                    <textarea
+                                                        value={reportForm.risks}
+                                                        onChange={(e) => setReportForm({ ...reportForm, risks: e.target.value })}
+                                                        placeholder="Risks to timeline?"
+                                                        rows={2}
+                                                        className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div>
+                                                <h4 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">3</div>
+                                                    Ready to Submit?
+                                                </h4>
+                                                <p className="text-sm text-blue-800 mt-1 ml-10">
+                                                    Your report will be formatted with the official structure + your KPI status from the tracker.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={copyBuiltReport}
+                                                className={`py-3 px-6 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 ${copiedBuiltReport
+                                                    ? 'bg-green-600 hover:bg-green-700'
+                                                    : 'bg-blue-600 hover:bg-blue-700'
+                                                    }`}
+                                            >
+                                                {copiedBuiltReport ? (
+                                                    <>
+                                                        <ClipboardCheck className="w-5 h-5" />
+                                                        Copied to Clipboard!
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy className="w-5 h-5" />
+                                                        Copy Formatted Report
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedReportRole === null && (
+                                <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-300">
+                                    <ClipboardCheck className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+                                    <p className="text-slate-500 font-medium">Select your role above to start building your daily report</p>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="p-6 bg-green-50 rounded-lg border border-green-200">
-                                <h3 className="font-bold text-green-900 mb-3">Daily Report Format</h3>
-                                <div className="text-sm text-green-800 space-y-2">
-                                    <p><strong>📅 Date & Time:</strong> Auto-filled</p>
-                                    <p><strong>👤 Name & Role:</strong> Auto-filled</p>
-                                    <p><strong>📊 Deliverables Summary:</strong> From tracker</p>
-                                    <p className="pt-2"><strong>✅ Completed Today:</strong></p>
-                                    <p className="pl-4">• Tasks with specific outcomes</p>
-                                    <p><strong>🔄 Tomorrow&apos;s Focus:</strong></p>
-                                    <p className="pl-4">• Priorities with expected dates</p>
-                                    <p><strong>🚫 Blockers:</strong></p>
-                                    <p className="pl-4">• Issues + who can help + impact</p>
-                                    <p><strong>⚠️ Risks:</strong></p>
-                                    <p className="pl-4">• Timeline or deliverable concerns</p>
-                                </div>
-                            </div>
-
-                            <div className="p-6 bg-red-50 rounded-lg border border-red-200">
-                                <h3 className="font-bold text-red-900 mb-3">Missed Report Consequences</h3>
-                                <ul className="text-sm text-red-800 space-y-2">
-                                    <li>- 1st miss: Verbal warning</li>
-                                    <li>- 2nd miss: Written warning + CEO escalation</li>
-                                    <li>- 3rd miss: Performance tracker documentation</li>
-                                    <li>- 5+ misses: Non-performance review</li>
-                                    <li className="pt-2 font-bold">Consecutive misses count toward 14-day rule</li>
+                        <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6 opacity-75">
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-700 mb-2">Why use this builder?</h4>
+                                <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
+                                    <li>Automatically pulls your KPI status from the Tracker tab</li>
+                                    <li>Formats your updates into clean bullet points</li>
+                                    <li>Ensures you don't miss required sections</li>
+                                    <li>Generates the correct header and footer tags</li>
                                 </ul>
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-red-700 mb-2">Submission Reminder</h4>
+                                <p className="text-xs text-slate-600">
+                                    Reports must be pasted into the <strong>#daily-reports</strong> channel on Slack/WhatsApp by your assigned deadline.
+                                    Looking for the simple templates? They are now integrated into this builder.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1046,7 +1229,22 @@ ${role.kpis.map((kpi, i) => {
                             <p className="text-xs md:text-sm text-slate-600 mb-3 md:mb-4">
                                 Download the official deliverables breakdown and overview guides.
                             </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <a
+                                    href="/deliverables/Exhibot 2.0 Event Overview.pdf"
+                                    download
+                                    className="flex items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg border-2 border-blue-400 hover:border-blue-600 hover:shadow-lg transition-all group"
+                                >
+                                    <div className="p-2 bg-blue-600 rounded-lg group-hover:bg-blue-700 transition-colors">
+                                        <FileText className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-blue-900">EXHIBOT 2.0 Event Overview</p>
+                                        <p className="text-xs text-blue-700">Event name, tagline, pillars, audience & objectives</p>
+                                    </div>
+                                    <Download className="w-5 h-5 text-blue-500 group-hover:text-blue-800 transition-colors" />
+                                </a>
+
                                 <a
                                     href="/deliverables/Other Departments Deliverables Breakdown Timeline.pdf"
                                     download
